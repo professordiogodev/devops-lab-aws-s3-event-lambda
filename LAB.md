@@ -2,11 +2,17 @@
 
 ## The situation
 
-Clippy's partners send CSV files of links they want shortened: a short code and a URL per line. Today those files arrive by e-mail, and an intern opens each one, squints at it, and fixes the typos. Last month a file with a wrong header was imported anyway and 4,000 links went to the wrong place.
+**The mailroom.** Clippy's partners send CSV files of links they want shortened, a short code and a URL per line. Today the files arrive by e-mail, and an intern opens each one, squints at it and fixes the typos. Last month a file with a wrong header was imported anyway and 4,000 links went to the wrong place.
 
-You will turn an S3 bucket into an **inbox that processes itself**. A partner drops `anything.csv` into `inbox/`. A Lambda function wakes up, checks the file and writes a **report** (how many rows, how many valid, which lines are wrong) into `processed/`, or an **error note** into `rejected/` if the file is unusable. Nobody clicks anything.
+You will turn an S3 bucket into an **inbox that processes itself**:
 
-It sounds like ten lines of code. It is not, for three reasons you will meet: the function must have permission for **exactly** what it does and nothing more, S3 must be allowed to **call** the function (a permission you do not set on the function's role), and a function that writes into the bucket that triggers it can **start itself forever**.
+```text
+inbox/       partner drops anything.csv
+processed/   a Lambda writes a report: rows, valid rows, wrong lines
+rejected/    or an error note if the file is unusable
+```
+
+Nobody clicks anything. It sounds like ten lines of code, and it is not, for three reasons you will meet: the function must have permission for **exactly** what it does, S3 must be allowed to **call** the function (a permission you do not set on the function's role), and a function that writes into the bucket that triggers it can **start itself forever**.
 
 > **Your mission**
 > - Write the function's logic and make 14 local tests pass, with no AWS account involved
