@@ -3,7 +3,9 @@
 set -u
 aws sts get-caller-identity >/dev/null 2>&1 || { echo "No working AWS credentials." >&2; exit 1; }
 ACCT=$(aws sts get-caller-identity --query Account --output text)
-B=clippy-inbox-$ACCT
+H=$(bash "$(dirname "$0")/.lab/handle.sh") || exit 1
+B=clippy-inbox-$H-$ACCT
+FN=clippy-inbox-$H
 if aws s3api head-bucket --bucket $B 2>/dev/null; then
   aws s3api put-bucket-notification-configuration --bucket $B --notification-configuration '{}' 2>/dev/null
   # delete every version and delete marker, then the bucket
@@ -22,9 +24,9 @@ while True:
 PY
   aws s3api delete-bucket --bucket $B && echo "deleted bucket $B"
 fi
-aws lambda delete-function --function-name clippy-inbox >/dev/null 2>&1 && echo "deleted function clippy-inbox"
-aws logs delete-log-group --log-group-name /aws/lambda/clippy-inbox 2>/dev/null && echo "deleted log group"
-R=clippy-inbox-role
+aws lambda delete-function --function-name $FN >/dev/null 2>&1 && echo "deleted function $FN"
+aws logs delete-log-group --log-group-name /aws/lambda/$FN 2>/dev/null && echo "deleted log group"
+R=clippy-inbox-role-$H
 for p in $(aws iam list-role-policies --role-name $R --query 'PolicyNames' --output text 2>/dev/null); do aws iam delete-role-policy --role-name $R --policy-name $p; done
 for p in $(aws iam list-attached-role-policies --role-name $R --query 'AttachedPolicies[].PolicyArn' --output text 2>/dev/null); do aws iam detach-role-policy --role-name $R --policy-arn $p; done
 aws iam delete-role --role-name $R 2>/dev/null && echo "deleted role $R"

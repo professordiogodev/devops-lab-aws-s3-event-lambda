@@ -3,4 +3,5 @@
 cd "$(dirname "$0")" || exit 1
 command -v python3 >/dev/null || { echo "python3 is not installed." >&2; exit 1; }
 aws sts get-caller-identity >/dev/null 2>&1 || { echo "No working AWS credentials." >&2; exit 1; }
-exec python3 .lab/s3check.py
+H=$(bash .lab/handle.sh) || exit 1
+exec python3 .lab/s3check.py "$H"

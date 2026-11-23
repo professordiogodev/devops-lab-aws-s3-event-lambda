@@ -22,7 +22,7 @@
 
 ## 🎬 The situation
 
-<p align="center"><img src="assets/gifs/situation.gif" width="300" alt="A file dropped in an inbox folder triggering a function that writes a report"></p>
+<p align="center"><img src="assets/gifs/situation.gif?v=a632ff43" width="300" alt="A file dropped in an inbox folder triggering a function that writes a report"></p>
 
 **The mailroom.** Clippy's partners send CSV files of links they want shortened, a short code and a URL per line. Today the files arrive by e-mail, and an intern opens each one, squints at it and fixes the typos. Last month a file with a wrong header was imported anyway and 4,000 links went to the wrong place.
 
@@ -59,7 +59,7 @@ Fork this repository and clone your fork. Open `handler.py`: the top of the file
 
 ## Part 1 - The logic, locally
 
-<p align="center"><img src="assets/gifs/recon.gif" width="640" alt="Terminal recording: verify.sh on the starter failing because handler.py is untouched and the inbox bucket does not exist"></p>
+<p align="center"><img src="assets/gifs/recon.gif?v=65bc8206" width="640" alt="Terminal recording: verify.sh on the starter failing because handler.py is untouched and the inbox bucket does not exist"></p>
 
 `process()` is a plain function: text in, result out. `lambda_handler()` reads from S3, calls it, writes the answer back. Write both (the TODOs say what), and run the tests until all 14 are green:
 
@@ -76,15 +76,15 @@ The tests replace S3 with a tiny fake, so you need no AWS account yet. Read the 
 
 ## Part 2 - The bucket and the role
 
-Everything is named after `clippy-inbox` and tagged `lab=aws-s3-event-lambda`.
+Everything is named after `clippy-inbox` and ends with **your handle** (your classmates share this AWS account, so the handle keeps your things apart). Run `./.lab/handle.sh` to see it; below it is written `<handle>`. Tag everything `lab=aws-s3-event-lambda` and `student=<handle>`.
 
-1. Create the bucket `clippy-inbox-<your account id>`. Keep **all four "block public access" settings on**. Tag it.
-2. Create the **role** `clippy-inbox-role`. Lambda may assume it. Attach the AWS managed policy `AWSLambdaBasicExecutionRole` (so the function can write its logs) and add **one inline policy** with:
+1. Create the bucket `clippy-inbox-<handle>-<your account id>`. Keep **all four "block public access" settings on**. Tag it.
+2. Create the **role** `clippy-inbox-role-<handle>`. Lambda may assume it. Attach the AWS managed policy `AWSLambdaBasicExecutionRole` (so the function can write its logs) and add **one inline policy** with:
    - `s3:GetObject` on `inbox/*` of this bucket only;
    - `s3:PutObject` on `processed/*` and `rejected/*` of this bucket only.
 
    Nothing else: no `s3:*`, no `*` in a resource, no write permission on `inbox/`.
-3. Create the log group `/aws/lambda/clippy-inbox` yourself and set **7 days** of retention, before the function exists. (Lambda creates its log group on first run, with *never expire*. Creating it first is how you take that decision away from the default.)
+3. Create the log group `/aws/lambda/clippy-inbox-<handle>` yourself and set **7 days** of retention, before the function exists. (Lambda creates its log group on first run, with *never expire*. Creating it first is how you take that decision away from the default.)
 
 > [!NOTE]
 > **Think** You gave the role no permission to write into `inbox/`. That looks like an unnecessary restriction on a function that never does it. What does the restriction turn a catastrophic bug (the function writes into the trigger prefix) into?
@@ -93,14 +93,14 @@ Everything is named after `clippy-inbox` and tagged `lab=aws-s3-event-lambda`.
 
 ## Part 3 - The function and the trigger
 
-1. Zip `handler.py` and create the function `clippy-inbox`: Python 3.12, handler `handler.lambda_handler`, your role, **15 seconds and 128 MB** (a CSV is tiny; do not buy a big box). Tag it.
+1. Zip `handler.py` and create the function `clippy-inbox-<handle>`: Python 3.12, handler `handler.lambda_handler`, your role, **15 seconds and 128 MB** (a CSV is tiny; do not buy a big box). Tag it.
 2. **Let S3 call the function.** This is a *resource-based* permission on the function (`lambda add-permission`): the principal `s3.amazonaws.com`, the action `lambda:InvokeFunction`, and two conditions that matter: the **source ARN** is your bucket and the **source account** is yours. Without the account condition, a bucket with the same name in someone else's account could invoke your function (S3 bucket names get reused after deletion).
 3. Configure the bucket's **event notification**: `s3:ObjectCreated:*`, to your function, with a **prefix `inbox/` and suffix `.csv`**.
 
 Do it once in the console first if you like (S3 > the bucket > Properties > Event notifications), then read the same configuration with the CLI:
 
 ```bash
-aws s3api get-bucket-notification-configuration --bucket clippy-inbox-<id>
+aws s3api get-bucket-notification-configuration --bucket clippy-inbox-<handle>-<id>
 ```
 
 > [!NOTE]
@@ -111,10 +111,10 @@ aws s3api get-bucket-notification-configuration --bucket clippy-inbox-<id>
 ## Part 4 - Upload, watch, break
 
 ```bash
-aws s3 cp samples/clean.csv s3://clippy-inbox-<id>/inbox/
-aws s3 cp samples/partner-march.csv s3://clippy-inbox-<id>/inbox/
-aws s3 cp samples/wrong-header.csv s3://clippy-inbox-<id>/inbox/
-aws s3 ls s3://clippy-inbox-<id>/ --recursive
+aws s3 cp samples/clean.csv s3://clippy-inbox-<handle>-<id>/inbox/
+aws s3 cp samples/partner-march.csv s3://clippy-inbox-<handle>-<id>/inbox/
+aws s3 cp samples/wrong-header.csv s3://clippy-inbox-<handle>-<id>/inbox/
+aws s3 ls s3://clippy-inbox-<handle>-<id>/ --recursive
 ```
 
 Download and read a report and an error note. Then break things on purpose:
@@ -125,7 +125,7 @@ Download and read a report and an error note. Then break things on purpose:
 - Temporarily remove `s3:PutObject` for `rejected/*` from the role and upload a bad file. Read the log line that results. Put the permission back.
 
 ```bash
-aws logs tail /aws/lambda/clippy-inbox --since 10m
+aws logs tail /aws/lambda/clippy-inbox-<handle> --since 10m
 ```
 
 > [!NOTE]
@@ -135,7 +135,7 @@ aws logs tail /aws/lambda/clippy-inbox --since 10m
 
 ## Part 5 - Prove it
 
-<p align="center"><img src="assets/gifs/verify.gif" width="640" alt="Terminal recording: verify.sh uploading real files to the inbox and ending with ALL CHECKS PASSED 26 of 26"></p>
+<p align="center"><img src="assets/gifs/verify.gif?v=bd31d078" width="640" alt="Terminal recording: verify.sh uploading real files to the inbox and ending with ALL CHECKS PASSED 26 of 26"></p>
 
 ```bash
 ./verify.sh
@@ -144,26 +144,26 @@ aws logs tail /aws/lambda/clippy-inbox --since 10m
 It runs your tests, reads the **real** bucket, role (it asks IAM to *simulate* what the role may and may not do), function and notification, then **uploads four real files** and checks the results, including that the function ran **exactly three times** for three CSV uploads. A function that loops will fail that count. Fix what is red and run it again until it ends with **ALL CHECKS PASSED**.
 
 > [!TIP]
-> **Stuck?** Nothing happens after an upload: the notification is missing or the prefix is wrong, or S3 has no permission to invoke (`aws lambda get-policy --function-name clippy-inbox`). `AccessDenied` in the logs: the role. `Unable to validate the following destination configuration` when saving the notification: the invoke permission must exist **before** the notification. The count is 4 or more: your notification has no suffix, so the `.txt` triggered the function too (and your code ignored it, which is why you could not see it in the output).
+> **Stuck?** Nothing happens after an upload: the notification is missing or the prefix is wrong, or S3 has no permission to invoke (`aws lambda get-policy --function-name clippy-inbox-<handle>`). `AccessDenied` in the logs: the role. `Unable to validate the following destination configuration` when saving the notification: the invoke permission must exist **before** the notification. The count is 4 or more: your notification has no suffix, so the `.txt` triggered the function too (and your code ignored it, which is why you could not see it in the output).
 
 <p align="center"><img src="assets/divider.svg" alt="" width="100%"></p>
 
 ## Level up (optional)
 
-- Make the function write each **valid** row into a DynamoDB table `clippy-urls` and add `dynamodb:PutItem` for that table only. Why is `put_item` with a condition expression the safe way to handle S3 delivering the same event twice?
+- Make the function write each **valid** row into a DynamoDB table `clippy-urls-<handle>` and add `dynamodb:PutItem` for that table only. Why is `put_item` with a condition expression the safe way to handle S3 delivering the same event twice?
 - Add an **on-failure destination** (an SQS queue) to the function's asynchronous configuration and make it fail on purpose. Where does the event end up?
 - Replace the manual setup with a Terraform file of about 60 lines. Which resource do you forget first, `aws_lambda_permission` or `aws_s3_bucket_notification`? Which one must `depends_on` the other?
 
 <!-- teardown:start (generated by labs.py, do not edit) -->
 ## Tear down (mandatory)
 
-<p align="center"><img src="assets/gifs/teardown.gif" width="640" alt="Terminal recording: teardown.sh deleting the function, log group and role, then verify-teardown.sh ending with TEARDOWN VERIFIED 4 of 4"></p>
+<p align="center"><img src="assets/gifs/teardown.gif?v=6fd4daf8" width="640" alt="Terminal recording: teardown.sh deleting the function, log group and role, then verify-teardown.sh ending with TEARDOWN VERIFIED 4 of 4"></p>
 
 Resources left behind cost money, keep doors open and pollute the next lab. Removing what you created is part of the job, so it is part of the submission: **you must prove it is gone**.
 
 Do this **last**, after you have pasted your `verify` output into `SUBMISSION.md` (once you tear down, the lab can no longer be verified).
 
-1. Run `./teardown.sh`. It empties and deletes the bucket (and its versions), the function, its log group and the role (all named `clippy-inbox...`).
+1. Run `./teardown.sh`. It empties and deletes the bucket (and its versions), the function, its log group and the role (all named `clippy-inbox...<handle>`, the handle is printed by ./.lab/handle.sh).
 
 Then run the proof:
 

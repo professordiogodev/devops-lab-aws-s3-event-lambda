@@ -3,7 +3,8 @@ import json, os, subprocess, sys, tempfile, time
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 os.chdir(ROOT)
 passed = failed = 0
-LAB, FN, ROLE = "aws-s3-event-lambda", "clippy-inbox", "clippy-inbox-role"
+H = sys.argv[1]
+LAB, FN, ROLE = "aws-s3-event-lambda", "clippy-inbox-" + H, "clippy-inbox-role-" + H
 
 
 def check(desc, ok, hint=""):
@@ -34,7 +35,7 @@ def finish():
 
 
 acct = aws("sts", "get-caller-identity")["Account"]
-B = "clippy-inbox-" + acct
+B = "clippy-inbox-" + H + "-" + acct
 print("Account %s" % acct)
 print("== Your code ==")
 src = open("handler.py").read()
@@ -50,7 +51,7 @@ if head is None:
 pab = (aws("s3api", "get-public-access-block", "--bucket", B) or {}).get("PublicAccessBlockConfiguration", {})
 check("all four 'block public access' settings are on", len(pab) == 4 and all(pab.values()))
 tg = {t["Key"]: t["Value"] for t in (aws("s3api", "get-bucket-tagging", "--bucket", B) or {}).get("TagSet", [])}
-check("the bucket is tagged lab=%s" % LAB, tg.get("lab") == LAB)
+check("the bucket is tagged lab=%s and student=%s" % (LAB, H), tg.get("lab") == LAB and tg.get("student") == H)
 
 print("== The function ==")
 fn = (aws("lambda", "get-function", "--function-name", FN) or {})
@@ -58,7 +59,7 @@ conf = fn.get("Configuration", {})
 check("function %s exists on Python 3.11 or newer" % FN, bool(conf) and conf.get("Runtime", "").startswith("python3.") and int(conf["Runtime"].split(".")[1]) >= 11)
 check("handler is handler.lambda_handler", conf.get("Handler") == "handler.lambda_handler")
 check("timeout 30 s or less and memory 256 MB or less", bool(conf) and conf.get("Timeout", 99) <= 30 and conf.get("MemorySize", 9999) <= 256)
-check("the function is tagged lab=%s" % LAB, fn.get("Tags", {}).get("lab") == LAB)
+check("the function is tagged lab=%s and student=%s" % (LAB, H), fn.get("Tags", {}).get("lab") == LAB and fn.get("Tags", {}).get("student") == H)
 lgs = (aws("logs", "describe-log-groups", "--log-group-name-prefix", "/aws/lambda/" + FN) or {}).get("logGroups", [])
 check("the log group keeps logs for a set number of days", bool(lgs) and "retentionInDays" in lgs[0], "create /aws/lambda/%s and set a retention" % FN)
 

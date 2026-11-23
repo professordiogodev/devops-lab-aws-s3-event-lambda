@@ -23,8 +23,6 @@ import json
 import re
 import urllib.parse
 
-import boto3
-
 CODE = re.compile(r"^[a-z0-9-]{3,20}$")
 HEADER = ["short_code", "url"]
 
@@ -47,7 +45,10 @@ def process(text):
 
 
 def lambda_handler(event, context, s3=None):
-    s3 = s3 or boto3.client("s3")
+    if s3 is None:
+        import boto3  # imported here so the local tests run without boto3 installed (Lambda provides it)
+
+        s3 = boto3.client("s3")
     done = 0
     # TODO 2: for every record: decode the key, ignore it unless it is inbox/<name>.csv,
     #         read the object, call process(), write processed/<name>.json or rejected/<name>.error.txt.
